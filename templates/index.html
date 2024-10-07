@@ -82,5 +82,65 @@ input {
             <button type="submit" value="Submit" class="login-btn">Login</button>
         </form>
     </div>
+    <div class="container">
+        <h2>Network Monitoring</h2>
+        <input type="text" id="host" placeholder="Enter IP or domain (e.g., google.com)" required>
+        
+        <button onclick="pingHost()">Ping</button>
+        <button onclick="tracerouteHost()">Traceroute</button>
+
+        <div class="result" id="result">
+            <!-- Results will be shown here -->
+        </div>
+    </div>
 </body>
+<script>
+    function pingHost() {
+            const host = document.getElementById('host').value;
+            if (!host) {
+                alert('Please enter a host');
+                return;
+            }
+
+            fetch(`/monitor?host=${host}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        document.getElementById('result').innerHTML = `<p>Error: ${data.error}</p>`;
+                    } else {
+                        document.getElementById('result').innerHTML = `
+                            <p>Status: ${data.status}</p>
+                            <p>Host: ${data.host}</p>
+                            <p>Response Time: ${data.response_time ? data.response_time + ' ms' : 'N/A'}</p>
+                        `;
+                    }
+                })
+                .catch(error => console.error('Error:', error));
+        }
+
+        function tracerouteHost() {
+            const host = document.getElementById('host').value;
+            if (!host) {
+                alert('Please enter a host');
+                return;
+            }
+
+            fetch(`/traceroute?host=${host}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        document.getElementById('result').innerHTML = `<p>Error: ${data.error}</p>`;
+                    } else if (data.status === "success") {
+                        const hops = data.traceroute_output.map(hop => `<p>${hop}</p>`).join("");
+                        document.getElementById('result').innerHTML = `
+                            <p>Status: ${data.status}</p>
+                            <p>Traceroute Output:</p>
+                            ${hops}
+                        `;
+                    } else {
+                        document.getElementById('result').innerHTML = `<p>Error: ${data.error_message}</p>`;
+                    }
+                })
+                .catch(error => console.error('Error:', error));
+</script>
 </html>
