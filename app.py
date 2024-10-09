@@ -35,7 +35,7 @@ def run_script():
     output = result.stdout  # Capture the output
     return output  # Send the output back to the front end
 
-# Define an API endpoint to monitor the network status of a server (Ping)
+# Define an API endpoint to monitor the network status of a server
 @app.route('/monitor', methods=['GET'])
 def monitor():
     try:
