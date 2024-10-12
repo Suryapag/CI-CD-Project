@@ -5,7 +5,41 @@ import platform
 
 app = Flask(__name__)
 
-network_metrics={}
+def ping_host(hostname):
+    """Ping a host and return the result."""
+    try:
+        response = subprocess.run(
+            ['ping', '-c', '4', hostname], 
+            stdout=subprocess.PIPE, 
+            stderr=subprocess.PIPE, 
+            timeout=10  # Add a timeout in case the command hangs
+        )
+        if response.returncode == 0:
+            return response.stdout.decode('utf-8')
+        else:
+            return f"Ping failed: {response.stderr.decode('utf-8')}"
+    except subprocess.CalledProcessError as e:
+        return f"Ping failed: {str(e)}"
+    except Exception as e:
+        return f"Error: {str(e)}"
+
+def traceroute_host(hostname):
+    """Perform traceroute and return the result."""
+    try:
+        response = subprocess.run(
+            ['traceroute', hostname], 
+            stdout=subprocess.PIPE, 
+            stderr=subprocess.PIPE, 
+            timeout=10  # Add a timeout in case the command hangs
+        )
+        if response.returncode == 0:
+            return response.stdout.decode('utf-8')
+        else:
+            return f"Traceroute failed: {response.stderr.decode('utf-8')}"
+    except subprocess.CalledProcessError as e:
+        return f"Traceroute failed: {str(e)}"
+    except Exception as e:
+        return f"Error: {str(e)}"
 
 @app.route('/')
 def index():
@@ -16,12 +50,12 @@ def login():
     username = request.form['username']
     password = request.form['password']
     # Example: Validate the login credentials (this is just a simple check)
-    if username != 'a' and password != '3':
+    if username == 'a' and password == '3':
         # If login is successful, redirect to a new page (e.g., dashboard)
         return redirect(url_for('main'))
     else:
         # If login fails, redirect back to the login page
-        return redirect(url_for('login_form'))
+        return redirect(url_for('monitor'))
 
 # Route for the dashboard (the page to redirect after successful login)
 @app.route('/main')
@@ -35,52 +69,28 @@ def run_script():
     output = result.stdout  # Capture the output
     return output  # Send the output back to the front end
 
-# Define an API endpoint to monitor the network status of a server
-@app.route('/monitor', methods=['GET'])
+@app.route('/monitor')
 def monitor():
-    try:
-        # Get the IP or hostname from the request arguments (e.g., ?host=8.8.8.8)
-        host = request.args.get('host', None)
-        
-        if not host:
-            return jsonify({"error": "Host is required"}), 400
+    """Render the network monitoring page."""
+    return render_template('moniter.html')
 
-        # Ping the host to check its availability
-        response_time = ping.ping(host, timeout=2)
-        
-        if response_time is None:
-            return jsonify({"status": "down", "host": host, "message": "Host is not reachable"}), 200
-        else:
-            return jsonify({"status": "up", "host": host, "response_time": response_time}), 200
-        
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+@app.route('/network-monitor', methods=['GET'])
+def network_monitor():
+    """API endpoint to monitor network metrics (ping and traceroute)."""
+    hostname = request.args.get('hostname', 'google.com')  # Default to google.com if no hostname is provided
 
-# Define an API endpoint to perform traceroute
-@app.route('/traceroute', methods=['GET'])
-def traceroute():
-    try:
-        # Get the IP or hostname from the request arguments (e.g., ?host=google.com)
-        host = request.args.get('host', None)
+    # Ping the host
+    ping_result = ping_host(hostname)
 
-        if not host:
-            return jsonify({"error": "Host is required"}), 400
-        
-        # Use 'tracert' for Windows and 'traceroute' for Unix-based systems
-        traceroute_command = ["tracert", host] if platform.system() == "Windows" else ["traceroute", host]
-        result = subprocess.run(traceroute_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-        
-        if result.returncode == 0:
-            return jsonify({"status": "success", "traceroute_output": result.stdout.splitlines()}), 200
-        else:
-            return jsonify({"status": "error", "error_message": result.stderr}), 500
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-    
-# API endpoint to get stored metrics
-@app.route('/metrics', methods=['GET'])
-def get_metrics():
-    return jsonify(network_metrics), 200  # Return the stored metrics
+    # Perform traceroute
+    traceroute_result = traceroute_host(hostname)
+
+    # Return results in JSON format
+    return jsonify({
+        'hostname': hostname,
+        'ping': ping_result,
+        'traceroute': traceroute_result
+    })
     
 
 if __name__ == '__main__':
